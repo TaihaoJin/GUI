@@ -1,0 +1,516 @@
+function varargout = quickTabular(varargin)
+% QUICKTABULAR MATLAB code for quickTabular.fig
+%      QUICKTABULAR, by itself, creates a new QUICKTABULAR or raises the existing
+%      singleton*.
+%
+%      H = QUICKTABULAR returns the handle to a new QUICKTABULAR or the handle to
+%      the existing singleton*.
+%
+%      QUICKTABULAR('CALLBACK',hObject,eventData,handles,...) calls the local
+%      function named CALLBACK in QUICKTABULAR.M with the given input arguments.
+%
+%      QUICKTABULAR('Property','Value',...) creates a new QUICKTABULAR or raises the
+%      existing singleton*.  Starting from the left, property value pairs are
+%      applied to the GUI before quickTabular_OpeningFcn gets called.  An
+%      unrecognized property name or invalid value makes property application
+%      stop.  All inputs are passed to quickTabular_OpeningFcn via varargin.
+%
+%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
+%      instance to run (singleton)".
+%
+% See also: GUIDE, GUIDATA, GUIHANDLES
+
+% Edit the above text to modify the response to help quickTabular
+
+% Last Modified by GUIDE v2.5 29-Jun-2018 20:34:11
+
+% Begin initialization code - DO NOT EDIT
+gui_Singleton = 1;
+gui_State = struct('gui_Name',       mfilename, ...
+                   'gui_Singleton',  gui_Singleton, ...
+                   'gui_OpeningFcn', @quickTabular_OpeningFcn, ...
+                   'gui_OutputFcn',  @quickTabular_OutputFcn, ...
+                   'gui_LayoutFcn',  [] , ...
+                   'gui_Callback',   []);
+if nargin && ischar(varargin{1})
+    gui_State.gui_Callback = str2func(varargin{1});
+end
+
+if nargout
+    [varargout{1:nargout}] = gui_mainfcn(gui_State, varargin{:});
+else
+    gui_mainfcn(gui_State, varargin{:});
+end
+% End initialization code - DO NOT EDIT
+
+
+% --- Executes just before quickTabular is made visible.
+function quickTabular_OpeningFcn(hObject, eventdata, handles, varargin)
+% This function has no output args, see OutputFcn.
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+% varargin   command line arguments to quickTabular (see VARARGIN)
+
+% Choose default command line output for quickTabular
+handles.output = hObject;
+guiData=handles;
+guiData.lines={};
+guiData.table.header={'A' 'B' 'C' 'D' 'E' 'F'}
+guiData.table.data=cell(6,6);
+guiData.fname='';
+guiData.dim=[1 1];
+guiData.CoordinateColumn=1;
+set(guiData.CoordinateColumnTF, 'String', '1   ');
+% Update handles structure
+guidata(hObject, guiData);
+%updateGUI(hObject);
+% UIWAIT makes quickTabular wait for user response (see UIRESUME)
+% uiwait(handles.figure1);
+
+
+
+% --- Executes on button press in pasteFromClipboardTB.
+function pasteFromClipboardTB_Callback(hObject, eventdata, handles)
+% hObject    handle to pasteFromClipboardTB (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%table=ocrTable();
+content=clipboard('paste');
+dt=double(content);
+content=content(dt<=127);
+len=length(content);
+p=1;
+p0=1;
+row=1;
+lines={};
+while(p<=len)
+    c=content(p);
+    if(double(c)==10)%endline
+        if(p>p0)
+            lines{row}=content(p0:p-1);
+            p0=p+1;
+            row=row+1;
+        end
+    end
+    p=p+1;
+end
+
+guiData=guidata(hObject);
+guiData.lines=lines;
+guidata(hObject,guiData);
+updateGUI(hObject);
+
+% --- Outputs from this function are returned to the command line.
+function varargout = quickTabular_OutputFcn(hObject, eventdata, handles) 
+% varargout  cell array for returning output args (see VARARGOUT);
+% hObject    handle to figure
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Get default command line output from handles structure
+varargout{1} = handles.output;
+
+% --- Executes on button press in saveAsBT.
+function saveAsBT_Callback(hObject, eventdata, handles)
+% hObject    handle to saveAsBT (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+guiData=guidata(hObject);
+tabledir=fullfile(CommonEnvMethods.getMatlabProjectPath(), 'Literature Tables');
+if(~exist(tabledir,'file'))
+    tabledir=pwd;
+end
+%[name, path]=uigetfile(fullfile(tabledir,'*.txt;*.xls;*.xlsx;*.csv;*.tsv'),'select file');
+[name, path]=uiputfile(fullfile(tabledir,'*.txt;*.xls;*.xlsx;*.csv;*.tsv'),'select file');
+[~,name,ext]=fileparts(name);
+fname=fullfile(path,[name '.tsv']);
+tab=CommonMethods.tab;
+fid=fopen(fname,'wt');
+data=guiData.table.data;
+for r=1:size(data,1)
+    line=CommonMethods.cell2line(data(r,:),tab);
+    fprintf(fid,'%s\n',line);
+end
+fclose(fid);
+
+% --- Executes on button press in loadTableBT.
+function loadTableBT_Callback(hObject, eventdata, handles)
+% hObject    handle to loadTableBT (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+guiData=guidata(hObject);
+tabledir=fullfile(CommonEnvMethods.getMatlabProjectPath(), 'Literature Tables');
+if(~exist(tabledir,'file'))
+    tabledir=pwd;
+end
+[name, path]=uigetfile(fullfile(tabledir,'*.txt;*.xls;*.xlsx;*.csv;*.tsv'),'select file');
+fname=fullfile(path,name);
+[~, ~, ext]=fileparts(fname);
+tab=CommonMethods.tab;
+switch ext
+    case '.xlsx'
+        [num,txt,raw]=xlsread(fname);
+        guiData=guidata(hObject);
+        guiData.table.data=raw;
+        guiData.table.header=arrayfun(@(x) CommonMethods.getDefaultColumnNames(x), 1:size(raw,2), 'UniformOutput', false);
+        guidata(hObject,guiData);        
+    case '.csv'
+        fid=fopen(fname);
+        t=textscan(fid,'%s','Delimiter','\n');
+        t=t{1};
+        rows=length(t);
+        tbl=cellfun(@(x)strsplit(x,','),t,'UniformOutput',false);
+        lens=cellfun(@(x)length(x),tbl);
+        cols=max(lens);
+        data=cell(rows,cols);
+        
+        for r=1:rows
+            tmp=tbl{r};
+            len=length(tmp);
+            for c=1:len
+                data{r,c}=tmp{c};
+            end
+            for c=len+1:cols
+                data{r,c}=' ';
+            end
+        end
+%        obj=spmStatSummaryHandler();
+        guiData.table.data=data;
+        guiData.table.header=arrayfun(@(x) CommonMethods.getDefaultColumnNames(x), 1:cols, 'UniformOutput', false);
+        guidata(hObject,guiData);    
+    case '.tsv'
+        fid=fopen(fname);
+        t=textscan(fid,'%s','Delimiter','\n');
+        t=t{1};
+        rows=length(t);
+        tbl=cellfun(@(x)strsplit(x,tab),t,'UniformOutput',false);
+        lens=cellfun(@(x)length(x),tbl);
+        cols=max(lens);
+        data=cell(rows,cols);
+        
+        for r=1:rows
+            tmp=tbl{r};
+            len=length(tmp);
+            for c=1:len
+                data{r,c}=tmp{c};
+            end
+            for c=len+1:cols
+                data{r,c}=' ';
+            end
+        end
+%        obj=spmStatSummaryHandler();
+        guiData.table.data=data;
+        guiData.table.header=arrayfun(@(x) CommonMethods.getDefaultColumnNames(x), 1:cols, 'UniformOutput', false);
+        guidata(hObject,guiData);    
+end
+updateGUI(hObject);
+        
+function updated=updatefname(hObject)
+guiData=guiDate(hObject);
+fname=guiData.fname;
+if(~isempty(fname))
+    [initdir,~,~]=fileparts(fname);
+else
+    initdir=CommonEnvMethods.getMatlabProjectPath();
+end
+
+if(~isempty(initdir))
+    cd(initdir);
+end
+
+dialogtitle='Select the file for the table';
+%folder=uigetdir(initdir,dialogtitle);
+%[name,path,filter]=uigetfile('*.csv',dialogtitle);
+[name,path,filter]=uiputfile('*.csv',dialogtitle);
+if(length(path)==1)
+    if(path==0)
+        specified=true;
+    else
+        specified=false;
+    end
+else
+    specified=true;
+end
+if(specified)    
+    guiData.fname=fullfile(path,name);
+    updated=true;   
+    set(guiData.fnameLB,'String',guiData.fname);
+else
+    updated=false;
+end
+
+
+    function updateGUI(hObject)
+        hObject=getMainHObject(hObject);
+        updateTable(hObject);
+        
+    function hObject=getMainHObject(hObject)
+        while(~MainHObject(hObject))
+            hObject=get(hObject,'parent');
+        end
+            
+    function IS=MainHObject(hObject)
+        IS=false;
+        tmp=get(hObject);
+        if(isfield(tmp,'Name'))
+            IS=strcmp(tmp.Name, 'quickTabular');
+        end
+        
+        function updateTable(hObject);
+            guiData=guidata(hObject);
+            if(isfield(guiData,'table'))
+                data=guiData.table.data;
+                header=guiData.table.header;
+                cols=max(length(header), size(data,2));
+                rows=size(data,1)+1;
+                for c=length(header)+1:cols
+                    header{c}='';
+                end
+            else
+                lines=guiData.lines;
+                rows=length(lines);
+                dim=[];
+                tmp={};
+                
+                for r=1:rows
+                    line=lines{r};
+                    tmp{end+1}=strsplit(line,'\t');
+                    dim(end+1)=length(tmp{end});
+                end
+                cols=max(dim);
+                data=cell(rows-1,cols);
+                header=cell(1,cols);
+                for r=1:rows
+                    if(r==1)
+                        n=dim(r);
+                        for c=1:n
+                            header{c}=tmp{r}{c};
+                        end
+                        for c=n+1:cols
+                            header{c}='';
+                        end
+                    else
+                        n=dim(r);
+                        for c=1:n
+                            data{r-1,c}=tmp{r}{c};
+                        end
+                        for c=n+1:cols
+                            data{r-1,c}='';
+                        end
+                    end
+                end
+            end
+            
+            lens=zeros(rows,cols);
+            fs=10;
+            rows=size(data,1)+1;
+            for r=1:rows
+                for c=1:cols
+                    if(r==1)
+                        lens(r,c)=length(header{c});
+                    else
+                        lens(r,c)=length(data{r-1,c});
+                    end
+                end
+            end
+            lens=lens*fs;
+            cellMaxLen=num2cell(max(lens));
+            % if(~isfield(guiData,'htable'))
+            %     guiData.htable=figure();
+            %     guidata(hObject,guiData);
+            % end
+            parent=get(guiData.tablePanel,'parent');
+            position=getpixelposition(guiData.tablePanel,true);
+            hTable=uitable(parent,'Data',data,'Position', position,'Units','normalized');
+            if(~isempty(header))
+                set(hTable,'ColumnWidth',cellMaxLen,'columnName',header);
+            end
+            if(isempty(get(hTable,'CellSelectionCallback')))
+                set(hTable,'CellSelectionCallback',@uitable_CellSelectionCallback);
+            end
+            
+            guiData.table.hTable=hTable;
+            guidata(hObject,guiData);
+
+function uitable_CellSelectionCallback(hObject, eventdata, handles)
+    row = eventdata.Indices(1);
+    col = eventdata.Indices(2);
+    guiData=guidata(hObject);
+    if ~isfield(guiData,'tableSelectionHandler')
+        guiData.tableSelectionHandler='';
+    end
+    
+    ind=get(guiData.TableTypeCB,'value');
+    tableTypes=get(guiData.TableTypeCB,'String');
+    tableType=tableTypes{ind};
+    if strcmp(tableType,'Image List')
+        col=str2num(guiData.CoordinateColumnTF.String);
+        idx=[row col];
+        data=guiData.table.hTable.Data;
+        displayImageSelection(data(idx));
+    end
+    
+    
+    if ~isempty(guiData.tableSelectionHandler)
+        col=str2num(guiData.CoordinateColumnTF.String);
+        idx=[row col];
+        data=guiData.table.hTable.Data;
+        cmd=[guiData.tableSelectionHandler '(idx,data);'];
+        eval(cmd);
+        return;
+    end
+    if(CommonMethods.equalMatrices(size(eventdata.Indices), [1 2]))
+        guiData=guidata(hObject);
+        guiData.table.indeces=eventdata.Indices;
+        guidata(hObject, guiData);
+        updateSPMExt(hObject);
+    end
+    
+    function IS=IsSPMStatSummaryTable(hObject)
+        guiData=guidata(hObject);
+        ind=get(guiData.TableTypeCB,'value');
+        tableTypes=get(guiData.TableTypeCB,'String');
+        if(strcmp(tableTypes(ind), 'SPM Stat Summary'))
+            IS=true;
+        else
+            IS=false;
+        end
+        
+function updateSPMExt(hObject)
+guiData=guidata(hObject);
+indeces=guiData.table.indeces;
+str=guiData.table.data{indeces(1), indeces(2)};
+if(isfield(guiData, 'spmExtension'))
+%    if(strcmp(strtrim(guiData.table.header{indeces(2)}), 'MNI coordinates (x y z)'))
+    if(indeces(2)==guiData.CoordinateColumn)
+        coor=CommonMethods.str2nums(str, ' ')';
+        spmExtGuiData=guidata(guiData.spmExtension);
+        spmExtGuiData.updateCoordinates_mni(guiData.spmExtension,coor(1:3));
+    end
+end
+
+% --- Executes on button press in makeAnatomyLabelBT.
+function makeAnatomyLabelBT_Callback(hObject, eventdata, handles)
+% hObject    handle to makeAnatomyLabelBT (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+guiData=guidata(hObject);
+ind=guiData.CoordinateColumn;
+data=guiData.table.data;
+dim=size(data);
+if ~isfield(guiData,'AtlasHandler')
+    guiData.AtlasHandler=TDAtlasHandler();
+end
+cols=dim(2)+1;
+%[structures, atlasIndexes]=findStructures(obj,coors,eroded)
+for r=1:dim(1)
+    str=data{r,ind};
+    coor=CommonMethods.str2nums_decimal(str);
+    if(length(coor)~=3)
+        guiData.table.data{r,cols}=' ';
+        continue;
+    end
+    anat=guiData.AtlasHandler.findStructures(coor);
+    anat=CommonMethods.cell2line(anat, '; ');
+    guiData.table.data{r,cols}=anat;
+end
+guiData.table.header{cols}='region';
+guidata(hObject,guiData);
+updateGUI(hObject);
+
+function CoordinateColumnTF_Callback(hObject, eventdata, handles)
+% hObject    handle to CoordinateColumnTF (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of CoordinateColumnTF as text
+%        str2double(get(hObject,'String')) returns contents of CoordinateColumnTF as a double
+guiData=guidata(hObject);
+guiData.CoordinateColumn=str2double(get(guiData.CoordinateColumnTF,'String'));
+guidata(hObject, guiData);
+
+% --- Executes during object creation, after setting all properties.
+function CoordinateColumnTF_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to CoordinateColumnTF (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in TableTypeCB.
+function TableTypeCB_Callback(hObject, eventdata, handles)
+% hObject    handle to TableTypeCB (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns TableTypeCB contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from TableTypeCB
+guiData=guidata(hObject);
+ind=get(guiData.TableTypeCB,'value');
+tableTypes=get(guiData.TableTypeCB,'String');
+if(strcmp(tableTypes(ind), 'loadHandler'))
+    tabledir=fullfile(CommonEnvMethods.getMatlabProjectPath(), 'Literature Tables');
+    if(~exist(tabledir,'file'))
+        tabledir=pwd;
+    end
+    [name, path]=uigetfile(fullfile(tabledir,'*.m'),'select file');
+    fname=fullfile(path,name);
+    [folder,name,ext]=fileparts(fname);
+    guiData.tableSelectionHandler=name;
+    set(guiData.TableTypeCB,'String',{'Literature' 'Image List' name 'loadHandler'});
+    set(guiData.TableTypeCB,'Value',2);
+    guidata(hObject,guiData);
+elseif(strcmp(tableTypes(ind), 'Literature'))
+    guiData.tableSelectionHandler='';
+    set(guiData.TableTypeCB,'String',{'Literature' 'Image List' 'loadHandler'});
+    set(guiData.TableTypeCB,'Value',1);    
+elseif(strcmp(tableTypes(ind), 'Image List'))
+    guiData.tableSelectionHandler='';
+    set(guiData.TableTypeCB,'String',{'Literature' 'Image List' 'loadHandler'});
+    set(guiData.TableTypeCB,'Value',2);    
+end
+    guidata(hObject,guiData);
+
+    function displayImageSelection(fnames)
+        CommonMethods.spm_check_registration(fnames);
+        
+% --- Executes during object creation, after setting all properties.
+function TableTypeCB_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to TableTypeCB (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on button press in copyTableBT.
+function copyTableBT_Callback(hObject, eventdata, handles)
+% hObject    handle to copyTableBT (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+guiData=guidata(hObject);
+header=guiData.table.header;
+data=guiData.table.data;
+if(size(header,2)==size(data,2))
+    vertcat(header,data);
+end
+tw=size(data,2);
+%line= cell2tableline(strs,pos,tw,del,strSpace)
+% l1=CommonMethods.cell2tableline(guiData.table.summaryFile,1,tw,CommonMethods.tab,' ');
+% options=get(guiData.MultCompCorrectionCB, 'String');
+% multCompCorr=options{get(guiData.MultCompCorrectionCB, 'Value')};
+% strs=['p_cluster: ' num2str(guiData.table.p_cluster) '; p_v_FWE: ' num2str(guiData.table.p_v_FWE) '; p_v_FDR: ' num2str(guiData.table.p_v_FDR) '; MultCompCorr: ' multCompCorr];
+% l2=CommonMethods.cell2tableline(strs,1,tw,CommonMethods.tab,' ');
+% data=vertcat(strsplit(l2,CommonMethods.tab), data);
+% data=vertcat(strsplit(l1,CommonMethods.tab), data);
+ClipboardHandler.copyCellarray(data);
